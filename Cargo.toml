@@ -7,3 +7,4 @@ edition = "2018"
 
 [dependencies]
 rust-glyph-recog = { git = "https://github.com/davidneumann/rust-glyph-recog" }
+byteorder = "1"
