@@ -66,13 +66,24 @@ fn handle_client(mut stream: TcpStream, recog: Arc<GlyphRecognizer>) {
                 println!("Attempting to get and parse glyph");
                 let result = recog.parse_glyph_from_stream(&mut stream);
                 println!("Server parsed client data as {}", result);
-                reply.extend(result.as_bytes());
+                if result.len() > 0 {
+                    reply.extend(result.as_bytes());
+                }
+                else {
+                    reply.extend(" ".as_bytes());
+                }
             }
-            stream.write(&[reply.len() as u8]).unwrap();
-            stream.write(&reply).unwrap();
+            println!("Attempting to send reply");
+            let mut buffer = [0u8;2];
+            LittleEndian::write_u16(&mut buffer, reply.len() as u16);
+            stream.write(&buffer).unwrap();
+            if reply.len() > 0 {
+                stream.write(&reply).unwrap();
+            }
         },
         Err(_) => println!("Failed to get glyph count"),
     }
+    println!("Closing connection with client");
     stream.shutdown(Shutdown::Both).unwrap();
 }
 
