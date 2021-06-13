@@ -12,18 +12,18 @@ fn main() {
         return;
     }
     match args[1].as_str() {
-        "server" => start_as_server(),
+        "server" => start_as_server(0),
         _ => (),
     }
 }
 
-fn start_as_server() {
+fn start_as_server(mut max_connections: u32) {
     let input_dir = "dats/";
     let m = Arc::new(GlyphRecognizer::new_from_data_dir(input_dir));
 
     let listener = TcpListener::bind("0.0.0.0:3333").unwrap();
     // accept connections and process them, spawning a new thread for each one
-    println!("Server listening on port 3333");
+    println!("Server listening on port 3333. Will close after {} connections", max_connections);
     for stream in listener.incoming() {
         match stream {
             Ok(stream) => {
@@ -33,6 +33,13 @@ fn start_as_server() {
                     // connection succeeded
                     handle_client(stream, m);
                 });
+                if max_connections > 0 {
+                    max_connections -= 1;
+                    if max_connections == 0 {
+                        println!("Closing server");
+                        break;
+                    }
+                }
             }
             Err(e) => {
                 println!("Error: {}", e);
@@ -81,9 +88,10 @@ mod tests {
     #[test]
     fn test_server() {
         println!("Test message");
-        let server = thread::spawn(|| { println!("Test message 2"); start_as_server(); });
+        let test_count = 3;
+        let server = thread::spawn(|| { println!("Test message 2"); start_as_server(1); });
         println!("Test message 3");
-        thread::sleep(time::Duration::from_secs(5));
+        thread::sleep(time::Duration::from_secs(15));
 
 
         match TcpStream::connect("localhost:3333") {
@@ -92,7 +100,7 @@ mod tests {
                 byteorder::LittleEndian::write_u16(&mut buffer, 3u16);
                 client.write(&buffer).unwrap();
 
-                for i in 0..3 {
+                for i in 0..test_count {
                     println!("Writing file {}", i);
                     let mut file = File::open(format!("dats/61/{}.dat", i)).unwrap();
                     io::copy(&mut file, &mut client).unwrap();
@@ -110,6 +118,8 @@ mod tests {
                 panic!("Failed to connect: {}:", e);
             }
         }
+
+        println!("test completed");
 
         server.join().unwrap();
     }
